@@ -1,0 +1,98 @@
+dataset:
+  # One of: FD001, FD002, FD003, FD004, ALL
+  subset: FD001
+  raw_path: data/raw
+  processed_path: data/processed
+  # Allowed subsets for validation / iteration / multi-domain training
+  subsets:
+    - FD001
+    - FD002
+    - FD003
+    - FD004
+  # NASA C-MAPSS columns (RUL labels typically derived from run-to-failure)
+  column_names:
+    - unit_id
+    - cycle
+    - op1
+    - op2
+    - op3
+    - s1
+    - s2
+    - s3
+    - s4
+    - s5
+    - s6
+    - s7
+    - s8
+    - s9
+    - s10
+    - s11
+    - s12
+    - s13
+    - s14
+    - s15
+    - s16
+    - s17
+    - s18
+    - s19
+    - s20
+    - s21
+
+preprocessing:
+  # Cap the target RUL (piecewise linear / clipped labels are common for C-MAPSS)
+  max_rul: 125
+  # Sliding window length (cycles) used to build sequences/features
+  window_size: 30
+  # Sensors commonly treated as low-variance / uninformative in C-MAPSS baselines
+  drop_sensors:
+    - s1
+    - s5
+    - s6
+    - s10
+    - s16
+    - s18
+    - s19
+  # Number of operating condition clusters per subset (k-means over op1-op3)
+  # Typical convention: FD001/FD003 have 1 condition, FD002/FD004 have 6.
+  op_condition_clusters:
+    FD001: 1
+    FD002: 6
+    FD003: 1
+    FD004: 6
+  # If true, normalize sensors per operating-condition cluster (recommended for C-MAPSS)
+  use_cluster_normalization: true
+
+model:
+  # One of: lstm, xgboost
+  type: lstm
+  # LSTM hyperparameters (ignored when type=xgboost)
+  hidden_size: 128
+  num_layers: 2
+  dropout: 0.2
+  # Training hyperparameters (some ignored when type=xgboost)
+  learning_rate: 0.001
+  batch_size: 256
+  epochs: 80
+  early_stopping_patience: 10
+  # Fraction of training units reserved for validation (stratify by unit_id in code)
+  train_val_split: 0.2
+  seed: 42
+
+xgboost:
+  # XGBoost regressor hyperparameters (used when model.type=xgboost)
+  n_estimators: 1200
+  max_depth: 6
+  learning_rate: 0.03
+  subsample: 0.8
+  colsample_bytree: 0.8
+  random_state: 42
+
+paths:
+  model_save_path: models/saved
+  logs_path: logs
+  plots_path: logs/plots
+  scaler_path: models/saved/scaler.pkl
+
+logging:
+  log_file: logs/training.log
+  level: INFO

@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+*.egg-info/
+
+# Virtual Environment
+rul_cmapss_env/
+
+# Data files (too large for github)
+data/raw/*.txt
+data/raw/*.parquet
+data/processed/*.npy
+
+# Models
+models/saved/*.pt
+models/saved/*.pkl
+
+# Logs
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.cursor
