@@ -28,4 +28,5 @@ logs/
 .idea/
 *.cursor
 
+# Cursor rules
 .cursorrules
