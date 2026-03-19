@@ -27,3 +27,5 @@ logs/
 .vscode/
 .idea/
 *.cursor
+
+.cursorrules
