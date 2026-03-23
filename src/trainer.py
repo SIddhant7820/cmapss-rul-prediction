@@ -1,12 +1,9 @@
-from __future__ import annotations
-
-from pathlib import Path
-
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
+from pathlib import Path
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 from xgboost import XGBRegressor
@@ -29,8 +26,7 @@ class LSTMModel(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out, _ = self.lstm(x)
         last_hidden = out[:, -1, :]
-        output = self.fc(last_hidden)
-        return output
+        return self.fc(last_hidden).squeeze(-1)  # output shape (batch,)
 
 
 class RULTrainer:
@@ -76,38 +72,33 @@ class RULTrainer:
             num_layers=self.num_layers,
             dropout=self.dropout,
         ).to(self.device)
-
         total_params = sum(p.numel() for p in model.parameters())
         self.logger.info("LSTM built with %d total parameters", total_params)
         return model
 
-    def get_dataloaders(
-        self, X_train: np.ndarray, y_train: np.ndarray
-    ) -> tuple[DataLoader, DataLoader]:
+    def get_dataloaders(self, X_train: np.ndarray, y_train: np.ndarray):
         X_tr, X_val, y_tr, y_val = train_test_split(
-            X_train,
-            y_train,
+            X_train, y_train,
             test_size=self.train_val_split,
             random_state=self.seed,
             shuffle=True,
         )
 
+        # keep targets as 1D (batch,) to match model output
         train_ds = TensorDataset(
             torch.tensor(X_tr, dtype=torch.float32),
-            torch.tensor(y_tr, dtype=torch.float32).view(-1, 1),
+            torch.tensor(y_tr, dtype=torch.float32),
         )
         val_ds = TensorDataset(
             torch.tensor(X_val, dtype=torch.float32),
-            torch.tensor(y_val, dtype=torch.float32).view(-1, 1),
+            torch.tensor(y_val, dtype=torch.float32),
         )
 
         train_loader = DataLoader(train_ds, batch_size=self.batch_size, shuffle=True)
         val_loader = DataLoader(val_ds, batch_size=self.batch_size, shuffle=False)
         return train_loader, val_loader
 
-    def train(
-        self, X_train: np.ndarray, y_train: np.ndarray, subset: str
-    ) -> tuple[LSTMModel, list[float], list[float]]:
+    def train(self, X_train: np.ndarray, y_train: np.ndarray, subset: str):
         if X_train.ndim != 3:
             raise ValueError("X_train should be 3D: (samples, window, features)")
 
@@ -117,47 +108,42 @@ class RULTrainer:
 
         criterion = nn.MSELoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
+
+        # give scheduler more patience so LR doesnt collapse too fast
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode="min",
-            factor=0.5,
-            patience=3,
+            optimizer, mode="min", factor=0.5, patience=7, min_lr=1e-6
         )
 
         best_val = float("inf")
         best_state = None
         patience_counter = 0
-        train_losses: list[float] = []
-        val_losses: list[float] = []
+        train_losses, val_losses = [], []
 
         for epoch in range(1, self.epochs + 1):
             model.train()
-            batch_train_losses: list[float] = []
+            batch_train_losses = []
 
             for xb, yb in train_loader:
-                xb = xb.to(self.device)
-                yb = yb.to(self.device)
-
+                xb, yb = xb.to(self.device), yb.to(self.device)
                 optimizer.zero_grad()
-                preds = model(xb)
-                loss = criterion(preds, yb)
+                preds = model(xb)          # shape (batch,)
+                loss = criterion(preds, yb)  # both (batch,) now
                 loss.backward()
+                # clip gradients to avoid exploding gradients
+                nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
-
                 batch_train_losses.append(loss.item())
 
             avg_train = float(np.mean(batch_train_losses))
             train_losses.append(avg_train)
 
             model.eval()
-            batch_val_losses: list[float] = []
+            batch_val_losses = []
             with torch.no_grad():
                 for xb, yb in val_loader:
-                    xb = xb.to(self.device)
-                    yb = yb.to(self.device)
+                    xb, yb = xb.to(self.device), yb.to(self.device)
                     preds = model(xb)
-                    v_loss = criterion(preds, yb)
-                    batch_val_losses.append(v_loss.item())
+                    batch_val_losses.append(criterion(preds, yb).item())
 
             avg_val = float(np.mean(batch_val_losses))
             val_losses.append(avg_val)
@@ -165,10 +151,7 @@ class RULTrainer:
 
             self.logger.info(
                 "Epoch %d/%d | train_loss=%.6f | val_loss=%.6f",
-                epoch,
-                self.epochs,
-                avg_train,
-                avg_val,
+                epoch, self.epochs, avg_train, avg_val,
             )
 
             if avg_val < best_val:
@@ -186,18 +169,22 @@ class RULTrainer:
             model.load_state_dict(best_state)
 
         save_path = self.model_save_dir / f"lstm_{subset}.pt"
-        torch.save(model.state_dict(), save_path)
-        self.logger.info("Best LSTM model saved to %s", save_path)
+        torch.save({
+            "state_dict": model.state_dict(),
+            "input_size": input_size,
+            "hidden_size": self.hidden_size,
+            "num_layers": self.num_layers,
+            "dropout": self.dropout,
+            "subset": subset,
+        }, save_path)
+        self.logger.info("Best LSTM checkpoint saved to %s", save_path)
 
-        # TODO: store full checkpoint (optimizer/scheduler) for easy resume
+        # TODO: store optimizer state for easy resume
         return model, train_losses, val_losses
 
-    def train_xgboost(self, X_train: np.ndarray, y_train: np.ndarray, subset: str) -> XGBRegressor:
-        if X_train.ndim != 3:
-            raise ValueError("X_train should be 3D: (samples, window, features)")
-
+    def train_xgboost(self, X_train: np.ndarray, y_train: np.ndarray, subset: str):
         n_samples = X_train.shape[0]
-        X_flat = X_train.reshape(n_samples, -1)  # flatten (window, features)
+        X_flat = X_train.reshape(n_samples, -1)
 
         model = XGBRegressor(**self.xgb_params)
         model.fit(X_flat, y_train)
@@ -205,11 +192,9 @@ class RULTrainer:
         save_path = self.model_save_dir / f"xgb_{subset}.pkl"
         joblib.dump(model, save_path)
         self.logger.info("XGBoost model saved to %s", save_path)
-
-        # TODO: add a quick CV sweep for xgb params if needed
         return model
 
-    def plot_losses(self, train_losses: list[float], val_losses: list[float], subset: str) -> None:
+    def plot_losses(self, train_losses, val_losses, subset: str):
         plt.figure(figsize=(8, 5))
         plt.plot(train_losses, label="Train Loss")
         plt.plot(val_losses, label="Val Loss")
@@ -218,10 +203,8 @@ class RULTrainer:
         plt.title(f"LSTM Training Curves ({subset})")
         plt.legend()
         plt.grid(alpha=0.3)
-
         save_path = self.plots_dir / f"loss_{subset}.png"
         plt.tight_layout()
         plt.savefig(save_path, dpi=120)
         plt.close()
-
         self.logger.info("Loss plot saved to %s", save_path)

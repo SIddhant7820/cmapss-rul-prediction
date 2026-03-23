@@ -63,18 +63,14 @@ preprocessing:
   use_cluster_normalization: true
 
 model:
-  # One of: lstm, xgboost
-  type: lstm
-  # LSTM hyperparameters (ignored when type=xgboost)
-  hidden_size: 128
+  type: "lstm"
+  hidden_size: 64        # reduce from 128 (simpler model)
   num_layers: 2
-  dropout: 0.2
-  # Training hyperparameters (some ignored when type=xgboost)
-  learning_rate: 0.001
-  batch_size: 256
-  epochs: 80
-  early_stopping_patience: 10
-  # Fraction of training units reserved for validation (stratify by unit_id in code)
+  dropout: 0.3           # increase from 0.2
+  learning_rate: 0.0005  # reduce from 0.001 (slower, better learning)
+  batch_size: 32         # reduce from 64 (more updates per epoch)
+  epochs: 100            # increase from 80
+  early_stopping_patience: 15  # increase from 10
   train_val_split: 0.2
   seed: 42
 
