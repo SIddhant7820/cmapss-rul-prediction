@@ -63,7 +63,7 @@ class CMAPSSTransformer:
 
         return out
 
-   def normalize(self, train_df: pd.DataFrame, test_df: pd.DataFrame, subset: str):
+    def normalize(self, train_df: pd.DataFrame, test_df: pd.DataFrame, subset: str):
         clusters = self.op_condition_clusters.get(subset, 1)
         sensor_cols = sorted([c for c in train_df.columns if c.startswith("s")])
         self.feature_cols = sensor_cols
@@ -71,7 +71,7 @@ class CMAPSSTransformer:
         train_out = train_df.copy()
         test_out = test_df.copy()
 
-        # cast sensor cols to float upfront to avoid dtype warnings
+      
         train_out[sensor_cols] = train_out[sensor_cols].astype(float)
         test_out[sensor_cols] = test_out[sensor_cols].astype(float)
 
@@ -108,8 +108,6 @@ class CMAPSSTransformer:
             joblib.dump({"mode": "cluster", "scalers": scalers, "sensor_cols": sensor_cols}, scaler_path)
 
         else:
-            # single scaler for FD001/FD003
-            # TODO: try StandardScaler here and compare results
             scaler = MinMaxScaler()
             scaler.fit(train_out[sensor_cols])
             train_out[sensor_cols] = scaler.transform(train_out[sensor_cols])
