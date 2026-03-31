@@ -63,13 +63,17 @@ class CMAPSSTransformer:
 
         return out
 
-    def normalize(self, train_df: pd.DataFrame, test_df: pd.DataFrame, subset: str):
+   def normalize(self, train_df: pd.DataFrame, test_df: pd.DataFrame, subset: str):
         clusters = self.op_condition_clusters.get(subset, 1)
         sensor_cols = sorted([c for c in train_df.columns if c.startswith("s")])
         self.feature_cols = sensor_cols
 
         train_out = train_df.copy()
         test_out = test_df.copy()
+
+        # cast sensor cols to float upfront to avoid dtype warnings
+        train_out[sensor_cols] = train_out[sensor_cols].astype(float)
+        test_out[sensor_cols] = test_out[sensor_cols].astype(float)
 
         self.model_save_dir.mkdir(parents=True, exist_ok=True)
         scaler_path = self.model_save_dir / f"scaler_{subset}.pkl"
@@ -83,10 +87,10 @@ class CMAPSSTransformer:
                 mask = train_out["regime"] == r
                 scaler = MinMaxScaler()
                 if mask.any():
-                    scaler.fit(train_out.loc[mask, sensor_cols].astype(float))
+                    scaler.fit(train_out.loc[mask, sensor_cols])
                 else:
                     # fallback if regime missing in train
-                    scaler.fit(train_out[sensor_cols].astype(float))
+                    scaler.fit(train_out[sensor_cols])
                 scalers[r] = scaler
 
             for r, scaler in scalers.items():
@@ -94,11 +98,11 @@ class CMAPSSTransformer:
                 te_mask = test_out["regime"] == r
                 if tr_mask.any():
                     train_out.loc[tr_mask, sensor_cols] = scaler.transform(
-                        train_out.loc[tr_mask, sensor_cols].astype(float)
+                        train_out.loc[tr_mask, sensor_cols]
                     )
                 if te_mask.any():
                     test_out.loc[te_mask, sensor_cols] = scaler.transform(
-                        test_out.loc[te_mask, sensor_cols].astype(float)
+                        test_out.loc[te_mask, sensor_cols]
                     )
 
             joblib.dump({"mode": "cluster", "scalers": scalers, "sensor_cols": sensor_cols}, scaler_path)
@@ -107,9 +111,9 @@ class CMAPSSTransformer:
             # single scaler for FD001/FD003
             # TODO: try StandardScaler here and compare results
             scaler = MinMaxScaler()
-            scaler.fit(train_out[sensor_cols].astype(float))
-            train_out[sensor_cols] = scaler.transform(train_out[sensor_cols].astype(float))
-            test_out[sensor_cols] = scaler.transform(test_out[sensor_cols].astype(float))
+            scaler.fit(train_out[sensor_cols])
+            train_out[sensor_cols] = scaler.transform(train_out[sensor_cols])
+            test_out[sensor_cols] = scaler.transform(test_out[sensor_cols])
 
             joblib.dump({"mode": "global", "scaler": scaler, "sensor_cols": sensor_cols}, scaler_path)
 
