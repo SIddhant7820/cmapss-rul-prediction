@@ -1,0 +1,84 @@
+dataset:
+  subset: FD001
+  raw_path: data/raw
+  processed_path: data/processed
+  subsets:
+    - FD001
+    - FD002
+    - FD003
+    - FD004
+  column_names:
+    - unit_id
+    - cycle
+    - op1
+    - op2
+    - op3
+    - s1
+    - s2
+    - s3
+    - s4
+    - s5
+    - s6
+    - s7
+    - s8
+    - s9
+    - s10
+    - s11
+    - s12
+    - s13
+    - s14
+    - s15
+    - s16
+    - s17
+    - s18
+    - s19
+    - s20
+    - s21
+
+preprocessing:
+  max_rul: 125
+  window_size: 30
+  drop_sensors:
+    - s1
+    - s5
+    - s6
+    - s10
+    - s16
+    - s18
+    - s19
+  op_condition_clusters:
+    FD001: 1
+    FD002: 6
+    FD003: 1
+    FD004: 6
+  use_cluster_normalization: true
+
+model:
+  type: "lstm"
+  hidden_size: 64
+  num_layers: 1
+  dropout: 0.2
+  learning_rate: 0.001
+  batch_size: 128
+  epochs: 25
+  early_stopping_patience: 6
+  train_val_split: 0.2
+  seed: 42
+
+xgboost:
+  n_estimators: 300
+  max_depth: 5
+  learning_rate: 0.05
+  subsample: 0.8
+  colsample_bytree: 0.8
+  random_state: 42
+
+paths:
+  model_save_path: models/saved
+  logs_path: logs
+  plots_path: logs/plots
+  scaler_path: models/saved/scaler.pkl
+
+logging:
+  log_file: logs/training.log
+  level: INFO

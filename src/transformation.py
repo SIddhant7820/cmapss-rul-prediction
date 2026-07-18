@@ -66,6 +66,7 @@ class CMAPSSTransformer:
     def normalize(self, train_df: pd.DataFrame, test_df: pd.DataFrame, subset: str):
         clusters = self.op_condition_clusters.get(subset, 1)
         sensor_cols = sorted([c for c in train_df.columns if c.startswith("s")])
+        op_cols = [c for c in train_df.columns if c.startswith("op")]
         self.feature_cols = sensor_cols
 
         train_out = train_df.copy()

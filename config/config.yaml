@@ -64,13 +64,13 @@ preprocessing:
 
 model:
   type: "lstm"
-  hidden_size: 64        # reduce from 128 (simpler model)
+  hidden_size: 128
   num_layers: 2
-  dropout: 0.3           # increase from 0.2
-  learning_rate: 0.0005  # reduce from 0.001 (slower, better learning)
-  batch_size: 32         # reduce from 64 (more updates per epoch)
-  epochs: 100            # increase from 80
-  early_stopping_patience: 15  # increase from 10
+  dropout: 0.2
+  learning_rate: 0.0003
+  batch_size: 32
+  epochs: 150
+  early_stopping_patience: 20
   train_val_split: 0.2
   seed: 42
 

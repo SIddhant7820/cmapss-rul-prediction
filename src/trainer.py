@@ -84,7 +84,7 @@ class RULTrainer:
             shuffle=True,
         )
 
-        # keep targets as 1D (batch,) to match model output
+        
         train_ds = TensorDataset(
             torch.tensor(X_tr, dtype=torch.float32),
             torch.tensor(y_tr, dtype=torch.float32),
@@ -126,8 +126,8 @@ class RULTrainer:
             for xb, yb in train_loader:
                 xb, yb = xb.to(self.device), yb.to(self.device)
                 optimizer.zero_grad()
-                preds = model(xb)          # shape (batch,)
-                loss = criterion(preds, yb)  # both (batch,) now
+                preds = model(xb)          
+                loss = criterion(preds, yb)  
                 loss.backward()
                 # clip gradients to avoid exploding gradients
                 nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -179,7 +179,7 @@ class RULTrainer:
         }, save_path)
         self.logger.info("Best LSTM checkpoint saved to %s", save_path)
 
-        # TODO: store optimizer state for easy resume
+        
         return model, train_losses, val_losses
 
     def train_xgboost(self, X_train: np.ndarray, y_train: np.ndarray, subset: str):

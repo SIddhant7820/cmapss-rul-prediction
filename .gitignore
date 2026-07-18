@@ -5,20 +5,22 @@ __pycache__/
 .env
 *.egg-info/
 
+# extra npy files (old duplicates, not the real processed data)
+data/X_test.npy
+data/X_train.npy
+data/y_test.npy
+data/y_train.npy
+
 # Virtual Environment
 rul_cmapss_env/
 
-# Data files (too large for github)
+# Raw data (too large for github, and not needed for the deployed app)
 data/raw/*.txt
 data/raw/*.parquet
-data/processed/*.npy
 
-# Models
-models/saved/*.pt
-models/saved/*.pkl
-
-# Logs
-logs/
+# Logs (but keep the plots the app needs)
+logs/*.log
+logs/*.csv
 
 # Jupyter
 .ipynb_checkpoints/
@@ -27,6 +29,4 @@ logs/
 .vscode/
 .idea/
 *.cursor
-
-# Cursor rules
 .cursorrules

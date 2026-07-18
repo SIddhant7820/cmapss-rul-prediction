@@ -12,27 +12,27 @@ from src.predictor import RULPredictor
 logger = get_logger(__name__)
 
 
-def run_pipeline(subset: str, model_type: str, skip_train: bool = False):
-    config = load_config()
+def run_pipeline(subset: str, model_type: str, skip_train: bool = False, config_path: str = "config/config.yaml"):
+    config = load_config(config_path)
     set_seed(config["model"]["seed"])
     ensure_dirs()
 
     logger.info("="*50)
-    logger.info("Starting RUL Pipeline | subset=%s | model=%s", subset, model_type)
+    logger.info("Starting RUL Pipeline | subset=%s | model=%s | config=%s", subset, model_type, config_path)
     logger.info("="*50)
 
-    # ── Step 1: Ingestion ──────────────────────────
+    # Step 1: Ingestion
     t0 = time.time()
     logger.info("Step 1: Ingestion")
-    ing = CMAPSSIngestion()
+    ing = CMAPSSIngestion(config_path)
     data = ing.load_subset(subset)
     ing.validate(data, subset)
     logger.info("Ingestion done in %.1fs", time.time() - t0)
 
-    # ── Step 2: Transformation ─────────────────────
+    # Step 2: Transformation
     t0 = time.time()
     logger.info("Step 2: Transformation")
-    trans = CMAPSSTransformer()
+    trans = CMAPSSTransformer(config_path)
     X_train, y_train, X_test, y_test = trans.run(
         data["train_df"], data["test_df"], data["rul_df"], subset
     )
@@ -40,11 +40,11 @@ def run_pipeline(subset: str, model_type: str, skip_train: bool = False):
     logger.info("X_train%s y_train%s X_test%s y_test%s",
                 X_train.shape, y_train.shape, X_test.shape, y_test.shape)
 
-    # ── Step 3: Training ───────────────────────────
+    # Step 3: Training
     if not skip_train:
         t0 = time.time()
         logger.info("Step 3: Training (%s)", model_type)
-        trainer = RULTrainer()
+        trainer = RULTrainer(config_path)
 
         if model_type == "lstm":
             model, train_losses, val_losses = trainer.train(X_train, y_train, subset)
@@ -58,18 +58,18 @@ def run_pipeline(subset: str, model_type: str, skip_train: bool = False):
     else:
         logger.info("Step 3: Skipping training (--skip-train flag set)")
 
-    # ── Step 4: Prediction ─────────────────────────
+    # Step 4: Prediction
     t0 = time.time()
     logger.info("Step 4: Prediction")
-    predictor = RULPredictor()
+    predictor = RULPredictor(config_path)
     y_pred = predictor.predict(X_test, subset, model_type=model_type)
     df_results = predictor.get_results_df(y_pred, y_test, subset)
     logger.info("Prediction done in %.1fs", time.time() - t0)
 
-    # ── Step 5: Evaluation ─────────────────────────
+    # Step 5: Evaluation
     t0 = time.time()
     logger.info("Step 5: Evaluation")
-    evaluator = RULEvaluator()
+    evaluator = RULEvaluator(config_path)
     results = evaluator.evaluate(y_test, y_pred, subset)
     evaluator.plot_predictions(y_test, y_pred, subset)
     evaluator.print_report(results, subset)
@@ -82,14 +82,14 @@ def run_pipeline(subset: str, model_type: str, skip_train: bool = False):
     return results
 
 
-def run_all_subsets(model_type: str, skip_train: bool = False):
-    config = load_config()
+def run_all_subsets(model_type: str, skip_train: bool = False, config_path: str = "config/config.yaml"):
+    config = load_config(config_path)
     subsets = config["dataset"]["subsets"]
 
     all_results = {}
     for subset in subsets:
         logger.info("\n")
-        results = run_pipeline(subset, model_type, skip_train)
+        results = run_pipeline(subset, model_type, skip_train, config_path)
         all_results[subset] = results
 
     # print comparison table
@@ -131,9 +131,14 @@ if __name__ == "__main__":
         action="store_true",
         help="Skip training and use saved model"
     )
+    parser.add_argument(
+        "--config",
+        default="config/config.yaml",
+        help="Path to config file (use config/config_fast.yaml for quick low-resource training)"
+    )
     args = parser.parse_args()
 
     if args.subset == "ALL":
-        run_all_subsets(args.model, args.skip_train)
+        run_all_subsets(args.model, args.skip_train, args.config)
     else:
-        run_pipeline(args.subset, args.model, args.skip_train)
+        run_pipeline(args.subset, args.model, args.skip_train, args.config)

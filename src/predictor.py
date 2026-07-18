@@ -103,7 +103,7 @@ class RULPredictor:
         )
         # TODO: optional batching for very large X_test on GPU
         return y
-
+    
     def get_results_df(
         self,
         y_pred: np.ndarray,
@@ -132,3 +132,7 @@ class RULPredictor:
         self.logger.info("Predictions table saved to %s", out_path)
         # TODO: pass real unit_id column from ingestion if not 1..n order
         return df
+
+
+
+        
