@@ -41,10 +41,11 @@ lstm_path = MODEL_DIR / f"lstm_{subset}.pt"
 xgb_path = MODEL_DIR / f"xgb_{subset}.pkl"
 model_path = lstm_path if model_type == "lstm" else xgb_path
 
-if not model_path.exists():
+if not model_path.exists() or model_path.stat().st_size == 0:
     st.error(
-        f"No trained {model_type.upper()} checkpoint found for {subset} "
-        f"(expected `{model_path}`). Train it first with:\n\n"
+        f"No valid trained {model_type.upper()} checkpoint found for {subset} "
+        f"(expected `{model_path}`, found "
+        f"{'0-byte file' if model_path.exists() else 'nothing'}). Train it first with:\n\n"
         f"`python main.py --subset {subset} --model {model_type} "
         f"--config config/config_fast.yaml`"
     )
