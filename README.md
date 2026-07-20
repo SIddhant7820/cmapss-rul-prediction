@@ -55,7 +55,7 @@ Supported subsets:
 # 🛠 Project Structure
 
 ```
-cursor_project/
+cmapss_project/
 
 │── app.py
 │── main.py
