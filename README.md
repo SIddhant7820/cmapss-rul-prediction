@@ -228,7 +228,7 @@ The project evaluates predictions using:
 | FD001 | 13.48 | 10.23 | 0.895 |
 | FD002 | 26.72 | 17.82 | 0.753 |
 | FD003 | 13.26 | 9.34 | 0.897 |
-| FD004 | *(Update after training completes)* | *(Update)* | *(Update)* |
+| FD004 | 33.21 | 22.54 | 0.6291|
 
 ---
 
